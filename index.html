@@ -1,0 +1,2060 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ONG Por Amor — Sistema de Inventário & Almoxarifado</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+/* ===== RESET & VARIABLES ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0d14;
+  --bg2: #10141f;
+  --bg3: #161b2e;
+  --card: #1a2035;
+  --card2: #1e2540;
+  --border: #2a3350;
+  --border2: #3a4870;
+  --accent: #ff6b35;
+  --accent2: #ff8c5a;
+  --accent3: #ffad80;
+  --gold: #f59e0b;
+  --blue: #3b82f6;
+  --green: #10b981;
+  --red: #ef4444;
+  --purple: #8b5cf6;
+  --cyan: #06b6d4;
+  --text: #e8ecf4;
+  --text2: #9aa3bc;
+  --text3: #5c6680;
+  --font-head: 'Syne', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --radius: 12px;
+  --radius2: 20px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  --shadow2: 0 8px 40px rgba(0,0,0,0.6);
+  --glow: 0 0 30px rgba(255,107,53,0.15);
+}
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* ===== LOADING SCREEN ===== */
+#loading-screen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.5s, visibility 0.5s;
+}
+#loading-screen.hidden { opacity: 0; visibility: hidden; }
+.loading-logo { width: 100px; height: 100px; border-radius: 50%; margin-bottom: 24px; animation: pulse-glow 2s infinite; object-fit: cover; }
+@keyframes pulse-glow {
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,107,53,0); }
+  50% { box-shadow: 0 0 0 20px rgba(255,107,53,0.15); }
+}
+.loading-bar-wrap { width: 200px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.loading-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent3)); border-radius: 2px; width: 0%; animation: load-fill 1.8s ease forwards; }
+@keyframes load-fill { to { width: 100%; } }
+.loading-text { font-family: var(--font-head); font-size: 12px; color: var(--text3); letter-spacing: 3px; text-transform: uppercase; margin-top: 12px; }
+
+/* ===== LOGIN OVERLAY ===== */
+#login-overlay {
+  position: fixed; inset: 0;
+  background: rgba(10,13,20,0.97);
+  backdrop-filter: blur(20px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  transition: opacity 0.4s, visibility 0.4s;
+}
+#login-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.login-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  padding: 40px;
+  width: 420px;
+  max-width: 90vw;
+  box-shadow: var(--shadow2), var(--glow);
+  animation: slide-up 0.4s ease;
+}
+@keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.login-logo { text-align: center; margin-bottom: 28px; }
+.login-logo img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); }
+.login-title { font-family: var(--font-head); font-size: 22px; font-weight: 700; text-align: center; margin: 12px 0 4px; }
+.login-subtitle { color: var(--text3); font-size: 12px; text-align: center; letter-spacing: 2px; text-transform: uppercase; }
+.login-divider { height: 1px; background: var(--border); margin: 24px 0; }
+.login-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.3); color: var(--accent); padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 20px; }
+.login-badge::before { content: '🔐'; }
+.login-error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+.login-error.show { display: block; }
+
+/* ===== FORMS ===== */
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 6px; letter-spacing: 0.5px; text-transform: uppercase; }
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255,107,53,0.1);
+}
+.form-select { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239aa3bc' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+.form-select option { background: var(--card); }
+.form-textarea { resize: vertical; min-height: 80px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+/* ===== BUTTONS ===== */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: var(--radius);
+  font-family: var(--font-body); font-size: 13px; font-weight: 500;
+  cursor: pointer; border: none; transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(255,107,53,0.3); }
+.btn-secondary { background: var(--card2); color: var(--text2); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--bg3); color: var(--text); border-color: var(--border2); }
+.btn-danger { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+.btn-danger:hover { background: rgba(239,68,68,0.25); }
+.btn-success { background: rgba(16,185,129,0.15); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
+.btn-success:hover { background: rgba(16,185,129,0.25); }
+.btn-gold { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.3); }
+.btn-gold:hover { background: rgba(245,158,11,0.25); }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-lg { padding: 13px 28px; font-size: 15px; font-weight: 600; }
+.btn-full { width: 100%; justify-content: center; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+/* ===== LAYOUT ===== */
+#app { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 260px; min-width: 260px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  position: fixed; top: 0; left: 0; bottom: 0;
+  z-index: 100;
+  transition: transform 0.3s;
+}
+.main-content {
+  flex: 1;
+  margin-left: 260px;
+  display: flex; flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+}
+.sidebar-logo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); flex-shrink: 0; }
+.sidebar-brand { flex: 1; min-width: 0; }
+.sidebar-brand-name { font-family: var(--font-head); font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-brand-sub { font-size: 10px; color: var(--text3); letter-spacing: 1.5px; text-transform: uppercase; }
+.sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+.nav-section { padding: 0 16px; margin-bottom: 4px; }
+.nav-section-label { font-size: 10px; color: var(--text3); letter-spacing: 2px; text-transform: uppercase; padding: 8px 8px 4px; font-weight: 600; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 10px;
+  cursor: pointer; transition: all 0.15s;
+  color: var(--text2); font-size: 13px; font-weight: 500;
+  margin-bottom: 2px; position: relative;
+}
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: rgba(255,107,53,0.1); color: var(--accent); }
+.nav-item.active::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 60%; background: var(--accent); border-radius: 0 3px 3px 0; }
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; }
+.nav-badge { margin-left: auto; background: var(--accent); color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; min-width: 18px; text-align: center; }
+.nav-badge.warning { background: var(--gold); }
+.sidebar-footer { padding: 16px; border-top: 1px solid var(--border); }
+.admin-info { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; background: var(--bg3); }
+.admin-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.admin-name { font-size: 12px; font-weight: 600; }
+.admin-role { font-size: 10px; color: var(--text3); }
+.logout-btn { margin-left: auto; background: none; border: none; color: var(--text3); cursor: pointer; padding: 4px; border-radius: 6px; transition: color 0.2s; }
+.logout-btn:hover { color: var(--red); }
+
+/* ===== TOPBAR ===== */
+.topbar {
+  height: 64px; padding: 0 28px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 16px;
+  position: sticky; top: 0; z-index: 50;
+}
+.topbar-title { font-family: var(--font-head); font-size: 18px; font-weight: 700; }
+.topbar-subtitle { font-size: 12px; color: var(--text3); }
+.topbar-spacer { flex: 1; }
+.search-box { display: flex; align-items: center; gap: 8px; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; width: 240px; }
+.search-box input { background: none; border: none; outline: none; color: var(--text); font-family: var(--font-body); font-size: 13px; width: 100%; }
+.search-box input::placeholder { color: var(--text3); }
+.search-icon { color: var(--text3); flex-shrink: 0; }
+.topbar-date { font-size: 12px; color: var(--text3); }
+
+/* ===== PAGE CONTENT ===== */
+.page { padding: 28px; display: none; animation: fade-in 0.3s ease; }
+.page.active { display: block; }
+@keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ===== SECTION HEADER ===== */
+.section-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+.section-title { font-family: var(--font-head); font-size: 24px; font-weight: 700; }
+.section-subtitle { font-size: 13px; color: var(--text3); margin-top: 2px; }
+.section-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ===== STAT CARDS ===== */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  padding: 20px;
+  position: relative; overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.stat-card::before { content: ''; position: absolute; top: 0; right: 0; width: 80px; height: 80px; border-radius: 0 0 0 80px; opacity: 0.07; }
+.stat-card.blue::before { background: var(--blue); }
+.stat-card.green::before { background: var(--green); }
+.stat-card.orange::before { background: var(--accent); }
+.stat-card.gold::before { background: var(--gold); }
+.stat-card.purple::before { background: var(--purple); }
+.stat-card.red::before { background: var(--red); }
+.stat-card.cyan::before { background: var(--cyan); }
+.stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; font-size: 18px; }
+.stat-icon.blue { background: rgba(59,130,246,0.15); }
+.stat-icon.green { background: rgba(16,185,129,0.15); }
+.stat-icon.orange { background: rgba(255,107,53,0.15); }
+.stat-icon.gold { background: rgba(245,158,11,0.15); }
+.stat-icon.purple { background: rgba(139,92,246,0.15); }
+.stat-icon.red { background: rgba(239,68,68,0.15); }
+.stat-icon.cyan { background: rgba(6,182,212,0.15); }
+.stat-value { font-family: var(--font-head); font-size: 28px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+.stat-label { font-size: 12px; color: var(--text3); font-weight: 500; }
+.stat-change { font-size: 11px; color: var(--green); margin-top: 6px; }
+.stat-change.down { color: var(--red); }
+
+/* ===== DATA TABLES ===== */
+.table-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius2); overflow: hidden; }
+.table-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.table-title { font-family: var(--font-head); font-size: 15px; font-weight: 600; }
+.table-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-input { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; color: var(--text); font-family: var(--font-body); font-size: 12px; outline: none; transition: border-color 0.2s; }
+.filter-input:focus { border-color: var(--accent); }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead th { padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--border); white-space: nowrap; }
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--card2); }
+tbody td { padding: 12px 16px; font-size: 13px; vertical-align: middle; }
+.table-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.table-count { font-size: 12px; color: var(--text3); }
+.pagination { display: flex; gap: 4px; }
+.page-btn { width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--border); background: none; color: var(--text2); cursor: pointer; font-size: 12px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
+.page-btn:hover, .page-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+/* ===== BADGES/TAGS ===== */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; white-space: nowrap; }
+.badge-green { background: rgba(16,185,129,0.15); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.2); }
+.badge-red { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.2); }
+.badge-gold { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.2); }
+.badge-blue { background: rgba(59,130,246,0.15); color: #93c5fd; border: 1px solid rgba(59,130,246,0.2); }
+.badge-purple { background: rgba(139,92,246,0.15); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.2); }
+.badge-gray { background: rgba(148,163,184,0.1); color: var(--text2); border: 1px solid var(--border); }
+.badge-orange { background: rgba(255,107,53,0.15); color: var(--accent3); border: 1px solid rgba(255,107,53,0.2); }
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(10,13,20,0.85);
+  backdrop-filter: blur(6px);
+  z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.25s, visibility 0.25s;
+}
+.modal-overlay.open { opacity: 1; visibility: visible; }
+.modal {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  width: 100%; max-width: 600px;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: var(--shadow2);
+  transform: scale(0.95); transition: transform 0.25s;
+}
+.modal-overlay.open .modal { transform: scale(1); }
+.modal-lg { max-width: 800px; }
+.modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--card); z-index: 1; }
+.modal-title { font-family: var(--font-head); font-size: 16px; font-weight: 700; }
+.modal-close { background: none; border: none; color: var(--text3); cursor: pointer; padding: 4px; border-radius: 6px; transition: color 0.2s; font-size: 18px; }
+.modal-close:hover { color: var(--red); }
+.modal-body { padding: 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ===== CHARTS ===== */
+.charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; margin-bottom: 24px; }
+.chart-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius2); padding: 20px; }
+.chart-title { font-family: var(--font-head); font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.chart-subtitle { font-size: 11px; color: var(--text3); margin-bottom: 16px; }
+.chart-wrap { position: relative; }
+
+/* ===== EMPTY STATE ===== */
+.empty-state { text-align: center; padding: 48px 24px; }
+.empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+.empty-title { font-family: var(--font-head); font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--text2); }
+.empty-desc { font-size: 13px; color: var(--text3); }
+
+/* ===== TOAST ===== */
+#toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9000; display: flex; flex-direction: column; gap: 8px; }
+.toast {
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 16px;
+  min-width: 280px; max-width: 360px;
+  display: flex; align-items: flex-start; gap: 10px;
+  box-shadow: var(--shadow2);
+  animation: toast-in 0.3s ease;
+  font-size: 13px;
+}
+.toast.success { border-color: rgba(16,185,129,0.3); }
+.toast.error { border-color: rgba(239,68,68,0.3); }
+.toast.warning { border-color: rgba(245,158,11,0.3); }
+@keyframes toast-in { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.toast-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.toast-content { flex: 1; }
+.toast-title { font-weight: 600; color: var(--text); }
+.toast-msg { color: var(--text2); font-size: 12px; }
+
+/* ===== DIVIDER ===== */
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+/* ===== ITEM GRID ===== */
+.items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.item-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius2); padding: 18px;
+  transition: all 0.2s; cursor: pointer; position: relative;
+}
+.item-card:hover { border-color: var(--border2); transform: translateY(-2px); box-shadow: var(--shadow); }
+.item-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.item-card-name { font-family: var(--font-head); font-size: 14px; font-weight: 600; }
+.item-card-cat { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.item-card-qty { text-align: right; }
+.item-card-qty-num { font-family: var(--font-head); font-size: 22px; font-weight: 800; color: var(--accent); }
+.item-card-qty-label { font-size: 10px; color: var(--text3); }
+.item-card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.item-progress { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin: 0 10px; }
+.item-progress-bar { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--green), var(--cyan)); transition: width 0.5s; }
+.item-progress-bar.low { background: linear-gradient(90deg, var(--red), var(--gold)); }
+
+/* ===== PRINT STYLES ===== */
+@media print {
+  .sidebar, .topbar, #toast-container, .modal-overlay, .btn:not(.print-show) { display: none !important; }
+  .main-content { margin-left: 0 !important; }
+  .page { padding: 20px !important; }
+  body { background: white; color: black; }
+  .print-doc { display: block !important; }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .main-content { margin-left: 0; }
+  .form-row, .form-row-3 { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+}
+
+/* ===== COLOR DOT ===== */
+.color-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+
+/* ===== HERITAGE CARD ===== */
+.heritage-bar { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; margin: 8px 0; }
+.heritage-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--gold)); }
+
+/* ===== PRINT RECEIPT ===== */
+.print-doc { display: none; }
+#print-area { display: none; }
+</style>
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div id="loading-screen">
+  <img src="https://unidzfxifxjruonbjspe.supabase.co/storage/v1/object/public/imagensong/LOGOMARCA.png" alt="ONG Por Amor" class="loading-logo" onerror="this.style.display='none'">
+  <div class="loading-bar-wrap"><div class="loading-bar"></div></div>
+  <div class="loading-text">Carregando sistema...</div>
+</div>
+
+<!-- LOGIN OVERLAY -->
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="https://unidzfxifxjruonbjspe.supabase.co/storage/v1/object/public/imagensong/LOGOMARCA.png" alt="ONG Por Amor" onerror="this.style.display='none'">
+    </div>
+    <div class="login-title">ONG Por Amor</div>
+    <div class="login-subtitle">Inventário & Almoxarifado</div>
+    <div class="login-divider"></div>
+    <div style="text-align:center;margin-bottom:20px">
+      <span class="login-badge">Acesso Administrativo</span>
+    </div>
+    <div class="login-error" id="login-error">Usuário ou senha incorretos.</div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" class="form-input" id="login-email" placeholder="admin@ongporamor.org.br" value="admin@ongporamor.org.br">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Senha</label>
+      <input type="password" class="form-input" id="login-password" placeholder="••••••••" value="">
+    </div>
+    <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()" style="margin-top:8px">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+      Entrar no Sistema
+    </button>
+    <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--text3)">
+      🔒 Dados protegidos via Supabase
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <img src="https://unidzfxifxjruonbjspe.supabase.co/storage/v1/object/public/imagensong/LOGOMARCA.png" alt="Logo" class="sidebar-logo" onerror="this.style.background='var(--accent)';this.style.padding='4px'">
+      <div class="sidebar-brand">
+        <div class="sidebar-brand-name">ONG Por Amor</div>
+        <div class="sidebar-brand-sub">Almoxarifado</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-label">Principal</div>
+        <div class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard">
+          <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          Dashboard
+        </div>
+        <div class="nav-item" onclick="navigate('inventario')" id="nav-inventario">
+          <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          Inventário
+          <span class="nav-badge" id="badge-inventario">0</span>
+        </div>
+        <div class="nav-item" onclick="navigate('emprestimos')" id="nav-emprestimos">
+          <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="10"/></svg>
+          Empréstimos
+          <span class="nav-badge warning" id="badge-emprestimos" style="display:none">!</span>
+        </div>
+        <div class="nav-item" onclick="navigate('pessoas')" id="nav-pessoas">
+          <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Pessoas
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Gestão</div>
+        <div class="nav-item" onclick="navigate('categorias')" id="nav-categorias">
+          <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          Categorias
+        </div>
+        <div class="nav-item" onclick="navigate('relatorios')" id="nav-relatorios">
+          <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Relatórios
+        </div>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="admin-info">
+        <div class="admin-avatar" id="admin-avatar">A</div>
+        <div>
+          <div class="admin-name" id="admin-name-display">Admin</div>
+          <div class="admin-role">Administrador</div>
+        </div>
+        <button class="logout-btn" onclick="doLogout()" title="Sair">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div>
+        <div class="topbar-title" id="page-title">Dashboard</div>
+        <div class="topbar-subtitle" id="page-subtitle">Visão geral do inventário</div>
+      </div>
+      <div class="topbar-spacer"></div>
+      <div class="search-box">
+        <svg class="search-icon" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" placeholder="Buscar itens, pessoas..." id="global-search" oninput="globalSearch(this.value)">
+      </div>
+      <div class="topbar-date" id="topbar-date"></div>
+    </header>
+
+    <!-- PAGES -->
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid" id="dashboard-stats">
+        <div class="stat-card orange">
+          <div class="stat-icon orange">📦</div>
+          <div class="stat-value" id="kpi-total-itens">—</div>
+          <div class="stat-label">Total de Itens Cadastrados</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon blue">✅</div>
+          <div class="stat-value" id="kpi-disponivel">—</div>
+          <div class="stat-label">Qtd. Disponível em Estoque</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon green">🤝</div>
+          <div class="stat-value" id="kpi-emprestimos-ativos">—</div>
+          <div class="stat-label">Empréstimos Ativos</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-icon red">⚠️</div>
+          <div class="stat-value" id="kpi-atrasados">—</div>
+          <div class="stat-label">Empréstimos em Atraso</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-icon gold">💰</div>
+          <div class="stat-value" id="kpi-patrimonio">—</div>
+          <div class="stat-label">Patrimônio Estimado (R$)</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-icon purple">🎁</div>
+          <div class="stat-value" id="kpi-doacoes">—</div>
+          <div class="stat-label">Itens por Doação</div>
+        </div>
+        <div class="stat-card cyan">
+          <div class="stat-icon cyan">📊</div>
+          <div class="stat-value" id="kpi-categorias">—</div>
+          <div class="stat-label">Categorias Ativas</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon blue">📅</div>
+          <div class="stat-value" id="kpi-mes">—</div>
+          <div class="stat-label">Empréstimos este Mês</div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-title">Distribuição por Categoria</div>
+          <div class="chart-subtitle">Quantidade de itens por categoria</div>
+          <div class="chart-wrap" style="height:260px"><canvas id="chart-categorias"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Origens do Inventário</div>
+          <div class="chart-subtitle">Doações vs. Compras</div>
+          <div class="chart-wrap" style="height:260px"><canvas id="chart-origem"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Empréstimos por Status</div>
+          <div class="chart-subtitle">Visão geral dos empréstimos ativos</div>
+          <div class="chart-wrap" style="height:260px"><canvas id="chart-emprestimos-status"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Estado de Conservação</div>
+          <div class="chart-subtitle">Condição dos itens do inventário</div>
+          <div class="chart-wrap" style="height:260px"><canvas id="chart-estado"></canvas></div>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">⚠️ Empréstimos em Atraso ou Prestes a Vencer</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Responsável</th><th>Itens</th><th>Data Empréstimo</th><th>Prev. Devolução</th><th>Status</th><th>Ações</th>
+            </tr></thead>
+            <tbody id="tbl-atrasados"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- INVENTÁRIO -->
+    <div class="page" id="page-inventario">
+      <div class="section-header">
+        <div>
+          <div class="section-title">📦 Inventário</div>
+          <div class="section-subtitle">Gerencie todos os itens da ONG Por Amor</div>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-secondary" onclick="toggleView()">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <span id="view-toggle-label">Grade</span>
+          </button>
+          <button class="btn btn-primary" onclick="openModal('modal-item')">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo Item
+          </button>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-bottom:20px">
+        <div class="table-header">
+          <div class="table-title">Filtros</div>
+          <div class="table-filters">
+            <input type="text" class="filter-input" placeholder="Buscar por nome..." id="inv-search" oninput="filterInventario()">
+            <select class="filter-input" id="inv-cat" onchange="filterInventario()"><option value="">Todas as categorias</option></select>
+            <select class="filter-input" id="inv-origem" onchange="filterInventario()">
+              <option value="">Todas as origens</option>
+              <option value="doacao">Doação</option>
+              <option value="compra">Compra</option>
+            </select>
+            <select class="filter-input" id="inv-estado" onchange="filterInventario()">
+              <option value="">Todos os estados</option>
+              <option value="novo">Novo</option>
+              <option value="bom">Bom</option>
+              <option value="regular">Regular</option>
+              <option value="ruim">Ruim</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="inv-grid" class="items-grid"></div>
+      <div class="table-card" id="inv-table-wrap" style="display:none">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Nome</th><th>Categoria</th><th>Qtd. Total</th><th>Disponível</th><th>Origem</th><th>Estado</th><th>Valor Est.</th><th>Ações</th>
+            </tr></thead>
+            <tbody id="tbl-inventario"></tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <div class="table-count" id="inv-count">0 itens</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMPRÉSTIMOS -->
+    <div class="page" id="page-emprestimos">
+      <div class="section-header">
+        <div>
+          <div class="section-title">🤝 Empréstimos</div>
+          <div class="section-subtitle">Controle de saída e devolução de itens</div>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-primary" onclick="openModal('modal-emprestimo')">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo Empréstimo
+          </button>
+        </div>
+      </div>
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">Lista de Empréstimos</div>
+          <div class="table-filters">
+            <input type="text" class="filter-input" placeholder="Buscar responsável..." id="emp-search" oninput="filterEmprestimos()">
+            <select class="filter-input" id="emp-status" onchange="filterEmprestimos()">
+              <option value="">Todos os status</option>
+              <option value="ativo">Ativo</option>
+              <option value="concluido">Concluído</option>
+              <option value="atrasado">Atrasado</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Responsável</th><th>Pessoa</th><th>Itens</th><th>Data Empréstimo</th><th>Prev. Devolução</th><th>Devolução Real</th><th>Status</th><th>Ações</th>
+            </tr></thead>
+            <tbody id="tbl-emprestimos"></tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <div class="table-count" id="emp-count">0 empréstimos</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PESSOAS -->
+    <div class="page" id="page-pessoas">
+      <div class="section-header">
+        <div>
+          <div class="section-title">👥 Pessoas</div>
+          <div class="section-subtitle">Beneficiários, voluntários e parceiros</div>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-primary" onclick="openModal('modal-pessoa')">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nova Pessoa
+          </button>
+        </div>
+      </div>
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">Cadastro de Pessoas</div>
+          <div class="table-filters">
+            <input type="text" class="filter-input" placeholder="Buscar por nome..." id="pes-search" oninput="filterPessoas()">
+            <select class="filter-input" id="pes-tipo" onchange="filterPessoas()">
+              <option value="">Todos os tipos</option>
+              <option value="beneficiario">Beneficiário</option>
+              <option value="voluntario">Voluntário</option>
+              <option value="funcionario">Funcionário</option>
+              <option value="parceiro">Parceiro</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Nome</th><th>Tipo</th><th>CPF</th><th>Telefone</th><th>Email</th><th>Empréstimos</th><th>Ações</th>
+            </tr></thead>
+            <tbody id="tbl-pessoas"></tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <div class="table-count" id="pes-count">0 pessoas</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CATEGORIAS -->
+    <div class="page" id="page-categorias">
+      <div class="section-header">
+        <div>
+          <div class="section-title">🗂️ Categorias</div>
+          <div class="section-subtitle">Organize o inventário por categorias</div>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-primary" onclick="openModal('modal-categoria')">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nova Categoria
+          </button>
+        </div>
+      </div>
+      <div class="items-grid" id="cat-grid"></div>
+    </div>
+
+    <!-- RELATÓRIOS -->
+    <div class="page" id="page-relatorios">
+      <div class="section-header">
+        <div>
+          <div class="section-title">📋 Relatórios</div>
+          <div class="section-subtitle">Gere e imprima relatórios do inventário</div>
+        </div>
+      </div>
+      <div class="items-grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">
+        <div class="item-card" onclick="printRelatorio('inventario')">
+          <div style="font-size:36px;margin-bottom:12px">📦</div>
+          <div class="item-card-name">Relatório de Inventário</div>
+          <div class="item-card-cat" style="margin-top:6px;color:var(--text2);font-size:12px">Todos os itens cadastrados com quantidades, origens e valores</div>
+          <div class="item-card-footer"><span class="badge badge-blue">PDF</span><button class="btn btn-sm btn-primary">Imprimir</button></div>
+        </div>
+        <div class="item-card" onclick="printRelatorio('emprestimos-ativos')">
+          <div style="font-size:36px;margin-bottom:12px">🤝</div>
+          <div class="item-card-name">Empréstimos Ativos</div>
+          <div class="item-card-cat" style="margin-top:6px;color:var(--text2);font-size:12px">Lista de todos os empréstimos em andamento com responsáveis</div>
+          <div class="item-card-footer"><span class="badge badge-green">PDF</span><button class="btn btn-sm btn-primary">Imprimir</button></div>
+        </div>
+        <div class="item-card" onclick="printRelatorio('atrasados')">
+          <div style="font-size:36px;margin-bottom:12px">⚠️</div>
+          <div class="item-card-name">Itens em Atraso</div>
+          <div class="item-card-cat" style="margin-top:6px;color:var(--text2);font-size:12px">Empréstimos que passaram da data prevista de devolução</div>
+          <div class="item-card-footer"><span class="badge badge-red">PDF</span><button class="btn btn-sm btn-primary">Imprimir</button></div>
+        </div>
+        <div class="item-card" onclick="printRelatorio('patrimonio')">
+          <div style="font-size:36px;margin-bottom:12px">💰</div>
+          <div class="item-card-name">Relatório de Patrimônio</div>
+          <div class="item-card-cat" style="margin-top:6px;color:var(--text2);font-size:12px">Valor estimado do patrimônio total da ONG por categoria</div>
+          <div class="item-card-footer"><span class="badge badge-gold">PDF</span><button class="btn btn-sm btn-primary">Imprimir</button></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODALS -->
+
+<!-- MODAL ITEM -->
+<div class="modal-overlay" id="modal-item">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-item-title">➕ Novo Item</div>
+      <button class="modal-close" onclick="closeModal('modal-item')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="item-id">
+      <div class="form-row">
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Nome do Item *</label>
+          <input type="text" class="form-input" id="item-nome" placeholder="Ex: Notebook Dell Inspiron">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Categoria *</label>
+          <select class="form-select" id="item-categoria"><option value="">Selecione...</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Origem *</label>
+          <select class="form-select" id="item-origem">
+            <option value="doacao">🎁 Doação</option>
+            <option value="compra">🛒 Compra Própria</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label class="form-label">Quantidade Total *</label>
+          <input type="number" class="form-input" id="item-qtd-total" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Qtd. Disponível *</label>
+          <input type="number" class="form-input" id="item-qtd-disp" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valor Estimado (R$)</label>
+          <input type="number" class="form-input" id="item-valor" min="0" step="0.01" placeholder="0,00">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Estado de Conservação</label>
+          <select class="form-select" id="item-estado">
+            <option value="novo">✨ Novo</option>
+            <option value="bom" selected>👍 Bom</option>
+            <option value="regular">⚠️ Regular</option>
+            <option value="ruim">❌ Ruim</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Localização no Almoxarifado</label>
+          <input type="text" class="form-input" id="item-localizacao" placeholder="Ex: Prateleira A, Box 3">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Doador / Fornecedor</label>
+          <input type="text" class="form-input" id="item-doador" placeholder="Nome de quem doou ou fornecedor">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Número de Série / Patrimônio</label>
+          <input type="text" class="form-input" id="item-serie" placeholder="Ex: SN-12345-ABCD">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrição / Observações</label>
+        <textarea class="form-textarea" id="item-descricao" placeholder="Informações adicionais sobre o item..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-item')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveItem()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Salvar Item
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EMPRÉSTIMO -->
+<div class="modal-overlay" id="modal-emprestimo">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">📤 Novo Empréstimo</div>
+      <button class="modal-close" onclick="closeModal('modal-emprestimo')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="emp-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Responsável pelo Empréstimo *</label>
+          <input type="text" class="form-input" id="emp-responsavel" placeholder="Nome completo do responsável">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Pessoa Cadastrada</label>
+          <select class="form-select" id="emp-pessoa"><option value="">Selecione (opcional)...</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data do Empréstimo *</label>
+          <input type="datetime-local" class="form-input" id="emp-data">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Previsão de Devolução</label>
+          <input type="datetime-local" class="form-input" id="emp-devolucao-prev">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observações</label>
+        <textarea class="form-textarea" id="emp-obs" placeholder="Motivo, condições, observações..."></textarea>
+      </div>
+      <div class="divider"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-family:var(--font-head);font-size:14px;font-weight:600">Itens do Empréstimo</div>
+        <button class="btn btn-sm btn-secondary" onclick="addEmpItem()">+ Adicionar Item</button>
+      </div>
+      <div id="emp-items-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-emprestimo')">Cancelar</button>
+      <button class="btn btn-gold" onclick="saveEmprestimoAndPrint()">
+        🖨️ Salvar e Imprimir
+      </button>
+      <button class="btn btn-primary" onclick="saveEmprestimo()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Salvar Empréstimo
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PESSOA -->
+<div class="modal-overlay" id="modal-pessoa">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-pessoa-title">👤 Nova Pessoa</div>
+      <button class="modal-close" onclick="closeModal('modal-pessoa')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pes-id">
+      <div class="form-row">
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Nome Completo *</label>
+          <input type="text" class="form-input" id="pes-nome" placeholder="Nome completo">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Tipo *</label>
+          <select class="form-select" id="pes-tipo-sel">
+            <option value="beneficiario">Beneficiário</option>
+            <option value="voluntario">Voluntário</option>
+            <option value="funcionario">Funcionário</option>
+            <option value="parceiro">Parceiro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">CPF</label>
+          <input type="text" class="form-input" id="pes-cpf" placeholder="000.000.000-00">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-input" id="pes-email" placeholder="email@exemplo.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefone</label>
+          <input type="text" class="form-input" id="pes-tel" placeholder="(00) 00000-0000">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Endereço</label>
+        <textarea class="form-textarea" id="pes-endereco" style="min-height:60px" placeholder="Endereço completo..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-pessoa')">Cancelar</button>
+      <button class="btn btn-primary" onclick="savePessoa()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CATEGORIA -->
+<div class="modal-overlay" id="modal-categoria">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-cat-title">🗂️ Nova Categoria</div>
+      <button class="modal-close" onclick="closeModal('modal-categoria')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cat-id">
+      <div class="form-group">
+        <label class="form-label">Nome da Categoria *</label>
+        <input type="text" class="form-input" id="cat-nome" placeholder="Ex: Eletrônicos">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <textarea class="form-textarea" id="cat-desc" placeholder="Descrição da categoria..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cor de Identificação</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="color" class="form-input" id="cat-cor" style="width:60px;height:40px;padding:4px;cursor:pointer" value="#ff6b35">
+          <span style="font-size:12px;color:var(--text3)">Escolha uma cor para identificar a categoria</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-categoria')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCategoria()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAR DELETE -->
+<div class="modal-overlay" id="modal-delete">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title">🗑️ Confirmar Exclusão</div>
+      <button class="modal-close" onclick="closeModal('modal-delete')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text2);line-height:1.7">Tem certeza que deseja excluir <strong id="delete-item-name" style="color:var(--text)"></strong>?</p>
+      <p style="color:var(--red);font-size:12px;margin-top:8px">⚠️ Esta ação não pode ser desfeita. O registro será permanentemente removido do banco de dados.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-delete')">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Excluir Definitivamente</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALHE EMPRÉSTIMO -->
+<div class="modal-overlay" id="modal-emp-detail">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">📋 Detalhes do Empréstimo</div>
+      <button class="modal-close" onclick="closeModal('modal-emp-detail')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-emp-detail-body"></div>
+    <div class="modal-footer" id="modal-emp-detail-footer"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast-container"></div>
+
+<!-- PRINT AREA -->
+<div id="print-area" style="display:none"></div>
+
+<script>
+// ===== SUPABASE CONFIG =====
+const SUPABASE_URL = 'https://unidzfxifxjruonbjspe.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVuaWR6ZnhpZnhqcnVvbmJqc3BlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4NTc0MTEsImV4cCI6MjA4ODQzMzQxMX0.0R_FvMXHDvt34bpa5Fi9pkJcu_zGy8Av86wVaXp2F3o';
+
+// ===== ADMIN CONFIG (em produção, use variáveis de ambiente) =====
+const ADMIN_EMAIL = 'admin@ongporamor.org.br';
+const ADMIN_PASS_HASH = 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3'; // SHA-256 de "Admin@2024"
+
+// ===== STATE =====
+let state = {
+  loggedIn: false,
+  adminName: 'Administrador',
+  currentPage: 'dashboard',
+  itens: [],
+  categorias: [],
+  pessoas: [],
+  emprestimos: [],
+  empItens: [],
+  viewMode: 'grid', // grid | table
+  deleteTarget: null,
+  deleteCallback: null,
+  charts: {},
+  empItemsTemp: []
+};
+
+// ===== SUPABASE API =====
+async function sbFetch(table, options = {}) {
+  const { method = 'GET', body, query = '', select = '*' } = options;
+  let url = `${SUPABASE_URL}/rest/v1/${table}?select=${select}${query}`;
+  const headers = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': method === 'POST' ? 'return=representation' : method === 'PATCH' ? 'return=representation' : ''
+  };
+  const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  if (!res.ok) { const err = await res.json(); throw new Error(err.message || 'Erro na API'); }
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+
+async function sbInsert(table, data) {
+  return await sbFetch(table, { method: 'POST', body: data });
+}
+
+async function sbUpdate(table, id, data) {
+  return await sbFetch(table, { method: 'PATCH', body: data, query: `&id=eq.${id}` });
+}
+
+async function sbDelete(table, id) {
+  let url = `${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`;
+  const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+  const res = await fetch(url, { method: 'DELETE', headers });
+  return res.ok;
+}
+
+async function sbSelect(table, query = '') {
+  return await sbFetch(table, { query });
+}
+
+// ===== SHA256 =====
+async function sha256(message) {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ===== LOGIN =====
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-password').value;
+  const hash = await sha256(pass);
+  
+  try {
+    // Verificar no Supabase
+    const admins = await sbSelect('administradores', `&email=eq.${encodeURIComponent(email)}&ativo=eq.true`);
+    const admin = admins[0];
+    
+    if (admin && admin.senha_hash === hash) {
+      state.loggedIn = true;
+      state.adminName = admin.nome;
+      document.getElementById('admin-name-display').textContent = admin.nome.split(' ')[0];
+      document.getElementById('admin-avatar').textContent = admin.nome[0].toUpperCase();
+      document.getElementById('login-overlay').classList.add('hidden');
+      document.getElementById('login-error').classList.remove('show');
+      showToast('Bem-vindo!', `Olá, ${admin.nome}!`, 'success');
+      await loadAllData();
+    } else if (email === ADMIN_EMAIL && hash === ADMIN_PASS_HASH) {
+      // Fallback local
+      state.loggedIn = true;
+      state.adminName = 'Administrador';
+      document.getElementById('admin-name-display').textContent = 'Admin';
+      document.getElementById('admin-avatar').textContent = 'A';
+      document.getElementById('login-overlay').classList.add('hidden');
+      document.getElementById('login-error').classList.remove('show');
+      showToast('Bem-vindo!', 'Login realizado com sucesso!', 'success');
+      await loadAllData();
+    } else {
+      document.getElementById('login-error').classList.add('show');
+      document.getElementById('login-error').textContent = 'E-mail ou senha incorretos. Tente novamente.';
+    }
+  } catch(e) {
+    // Fallback para login local se Supabase falhar
+    if (email === ADMIN_EMAIL && hash === ADMIN_PASS_HASH) {
+      state.loggedIn = true;
+      state.adminName = 'Administrador';
+      document.getElementById('admin-name-display').textContent = 'Admin';
+      document.getElementById('admin-avatar').textContent = 'A';
+      document.getElementById('login-overlay').classList.add('hidden');
+      showToast('Bem-vindo!', 'Login realizado (modo offline).', 'warning');
+      await loadAllData();
+    } else {
+      document.getElementById('login-error').classList.add('show');
+      document.getElementById('login-error').textContent = 'Erro de conexão. Verifique e tente novamente.';
+    }
+  }
+}
+
+document.getElementById('login-password').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+function doLogout() {
+  state.loggedIn = false;
+  document.getElementById('login-overlay').classList.remove('hidden');
+  document.getElementById('login-password').value = '';
+}
+
+// ===== NAVIGATION =====
+const PAGE_META = {
+  dashboard: { title: 'Dashboard', subtitle: 'Visão geral do inventário' },
+  inventario: { title: 'Inventário', subtitle: 'Gerencie os itens da ONG' },
+  emprestimos: { title: 'Empréstimos', subtitle: 'Controle de saída e devolução' },
+  pessoas: { title: 'Pessoas', subtitle: 'Beneficiários e voluntários' },
+  categorias: { title: 'Categorias', subtitle: 'Organização do inventário' },
+  relatorios: { title: 'Relatórios', subtitle: 'Gere e imprima relatórios' }
+};
+
+function navigate(page) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.getElementById(`nav-${page}`).classList.add('active');
+  document.getElementById(`page-${page}`).classList.add('active');
+  state.currentPage = page;
+  const meta = PAGE_META[page] || { title: page, subtitle: '' };
+  document.getElementById('page-title').textContent = meta.title;
+  document.getElementById('page-subtitle').textContent = meta.subtitle;
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'inventario') renderInventario();
+  if (page === 'emprestimos') renderEmprestimos();
+  if (page === 'pessoas') renderPessoas();
+  if (page === 'categorias') renderCategorias();
+}
+
+// ===== LOAD DATA =====
+async function loadAllData() {
+  try {
+    [state.categorias, state.itens, state.pessoas, state.emprestimos, state.empItens] = await Promise.all([
+      sbSelect('categorias', '&order=nome.asc'),
+      sbSelect('itens', '&ativo=eq.true&order=nome.asc'),
+      sbSelect('pessoas', '&ativo=eq.true&order=nome.asc'),
+      sbSelect('emprestimos', '&order=criado_em.desc'),
+      sbSelect('emprestimo_itens', '')
+    ]);
+    updateBadges();
+    checkAtrasados();
+    populateCatFilter();
+    populatePessoaSelect();
+    populateCatSelect();
+    if (state.currentPage === 'dashboard') renderDashboard();
+    if (state.currentPage === 'inventario') renderInventario();
+  } catch(e) {
+    showToast('Erro', 'Falha ao carregar dados: ' + e.message, 'error');
+  }
+}
+
+function updateBadges() {
+  document.getElementById('badge-inventario').textContent = state.itens.length;
+  const atrasados = state.emprestimos.filter(e => e.status === 'atrasado' || (e.status === 'ativo' && e.data_prevista_devolucao && new Date(e.data_prevista_devolucao) < new Date()));
+  const badge = document.getElementById('badge-emprestimos');
+  if (atrasados.length > 0) { badge.textContent = atrasados.length; badge.style.display = 'flex'; }
+  else badge.style.display = 'none';
+}
+
+function checkAtrasados() {
+  const hoje = new Date();
+  state.emprestimos.forEach(async e => {
+    if (e.status === 'ativo' && e.data_prevista_devolucao && new Date(e.data_prevista_devolucao) < hoje) {
+      await sbUpdate('emprestimos', e.id, { status: 'atrasado' });
+      e.status = 'atrasado';
+    }
+  });
+}
+
+function populateCatFilter() {
+  const sel = document.getElementById('inv-cat');
+  sel.innerHTML = '<option value="">Todas as categorias</option>';
+  state.categorias.forEach(c => sel.innerHTML += `<option value="${c.id}">${c.nome}</option>`);
+}
+
+function populatePessoaSelect() {
+  const sel = document.getElementById('emp-pessoa');
+  sel.innerHTML = '<option value="">Selecione (opcional)...</option>';
+  state.pessoas.forEach(p => sel.innerHTML += `<option value="${p.id}">${p.nome}</option>`);
+}
+
+function populateCatSelect() {
+  const sel = document.getElementById('item-categoria');
+  sel.innerHTML = '<option value="">Selecione...</option>';
+  state.categorias.forEach(c => sel.innerHTML += `<option value="${c.id}">${c.nome}</option>`);
+}
+
+// ===== HELPERS =====
+function getCatName(id) { const c = state.categorias.find(c => c.id === id); return c ? c.nome : '—'; }
+function getCatColor(id) { const c = state.categorias.find(c => c.id === id); return c ? c.cor : '#94a3b8'; }
+function getPessoaName(id) { const p = state.pessoas.find(p => p.id === id); return p ? p.nome : '—'; }
+function getItemName(id) { const i = state.itens.find(i => i.id === id); return i ? i.nome : '—'; }
+function fmtDate(d) { if (!d) return '—'; return new Date(d).toLocaleDateString('pt-BR'); }
+function fmtDateTime(d) { if (!d) return '—'; return new Date(d).toLocaleString('pt-BR'); }
+function fmtMoney(v) { if (!v) return 'R$ 0,00'; return 'R$ ' + parseFloat(v).toLocaleString('pt-BR', {minimumFractionDigits:2}); }
+
+const STATUS_BADGE = {
+  ativo: '<span class="badge badge-blue">Ativo</span>',
+  concluido: '<span class="badge badge-green">Concluído</span>',
+  atrasado: '<span class="badge badge-red">⚠️ Atrasado</span>',
+  cancelado: '<span class="badge badge-gray">Cancelado</span>'
+};
+const ESTADO_BADGE = {
+  novo: '<span class="badge badge-green">Novo</span>',
+  bom: '<span class="badge badge-blue">Bom</span>',
+  regular: '<span class="badge badge-gold">Regular</span>',
+  ruim: '<span class="badge badge-red">Ruim</span>',
+  descartado: '<span class="badge badge-gray">Descartado</span>'
+};
+const ORIGEM_BADGE = {
+  doacao: '<span class="badge badge-purple">🎁 Doação</span>',
+  compra: '<span class="badge badge-orange">🛒 Compra</span>'
+};
+const TIPO_BADGE = {
+  beneficiario: '<span class="badge badge-blue">Beneficiário</span>',
+  voluntario: '<span class="badge badge-green">Voluntário</span>',
+  funcionario: '<span class="badge badge-gold">Funcionário</span>',
+  parceiro: '<span class="badge badge-purple">Parceiro</span>'
+};
+
+// ===== DASHBOARD =====
+function renderDashboard() {
+  const itens = state.itens;
+  const emps = state.emprestimos;
+  const hoje = new Date();
+
+  const totalItens = itens.length;
+  const totalQtd = itens.reduce((s, i) => s + (i.quantidade_total || 0), 0);
+  const totalDisp = itens.reduce((s, i) => s + (i.quantidade_disponivel || 0), 0);
+  const ativos = emps.filter(e => e.status === 'ativo').length;
+  const atrasados = emps.filter(e => e.status === 'atrasado').length;
+  const patrimonio = itens.reduce((s, i) => s + ((i.valor_estimado || 0) * (i.quantidade_total || 0)), 0);
+  const doacao = itens.filter(i => i.origem === 'doacao').length;
+  const thisMonth = emps.filter(e => {
+    const d = new Date(e.data_emprestimo || e.criado_em);
+    return d.getMonth() === hoje.getMonth() && d.getFullYear() === hoje.getFullYear();
+  }).length;
+
+  document.getElementById('kpi-total-itens').textContent = totalItens;
+  document.getElementById('kpi-disponivel').textContent = totalDisp;
+  document.getElementById('kpi-emprestimos-ativos').textContent = ativos;
+  document.getElementById('kpi-atrasados').textContent = atrasados;
+  document.getElementById('kpi-patrimonio').textContent = fmtMoney(patrimonio);
+  document.getElementById('kpi-doacoes').textContent = doacao;
+  document.getElementById('kpi-categorias').textContent = state.categorias.length;
+  document.getElementById('kpi-mes').textContent = thisMonth;
+
+  renderDashboardCharts();
+  renderAtrasadosTable();
+}
+
+function renderDashboardCharts() {
+  const cats = state.categorias;
+  const itens = state.itens;
+
+  // Destruir charts existentes
+  Object.values(state.charts).forEach(c => { try { c.destroy(); } catch(e){} });
+  state.charts = {};
+
+  const colors = ['#ff6b35','#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#94a3b8'];
+
+  // Chart: por categoria
+  const catCounts = cats.map(c => ({ nome: c.nome, count: itens.filter(i => i.categoria_id === c.id).length })).filter(c => c.count > 0);
+  if (catCounts.length > 0) {
+    const ctx1 = document.getElementById('chart-categorias').getContext('2d');
+    state.charts.cat = new Chart(ctx1, {
+      type: 'doughnut',
+      data: { labels: catCounts.map(c => c.nome), datasets: [{ data: catCounts.map(c => c.count), backgroundColor: colors.slice(0, catCounts.length), borderWidth: 2, borderColor: '#1a2035' }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#9aa3bc', font: { size: 11 }, padding: 8, boxWidth: 12 } } } }
+    });
+  }
+
+  // Chart: origem
+  const doacoes = itens.filter(i => i.origem === 'doacao').length;
+  const compras = itens.filter(i => i.origem === 'compra').length;
+  const ctx2 = document.getElementById('chart-origem').getContext('2d');
+  state.charts.origem = new Chart(ctx2, {
+    type: 'pie',
+    data: { labels: ['Doação', 'Compra Própria'], datasets: [{ data: [doacoes, compras], backgroundColor: ['#8b5cf6','#ff6b35'], borderWidth: 2, borderColor: '#1a2035' }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#9aa3bc', font: { size: 11 } } } } }
+  });
+
+  // Chart: empréstimos por status
+  const empStatus = { ativo: 0, concluido: 0, atrasado: 0, cancelado: 0 };
+  state.emprestimos.forEach(e => { empStatus[e.status] = (empStatus[e.status] || 0) + 1; });
+  const ctx3 = document.getElementById('chart-emprestimos-status').getContext('2d');
+  state.charts.empStatus = new Chart(ctx3, {
+    type: 'bar',
+    data: {
+      labels: ['Ativos', 'Concluídos', 'Atrasados', 'Cancelados'],
+      datasets: [{ data: [empStatus.ativo, empStatus.concluido, empStatus.atrasado, empStatus.cancelado], backgroundColor: ['#3b82f6','#10b981','#ef4444','#94a3b8'], borderRadius: 6, borderSkipped: false }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: '#2a3350' }, ticks: { color: '#9aa3bc' } }, y: { grid: { color: '#2a3350' }, ticks: { color: '#9aa3bc', stepSize: 1 } } } }
+  });
+
+  // Chart: estado
+  const estados = { novo: 0, bom: 0, regular: 0, ruim: 0 };
+  itens.forEach(i => { estados[i.estado] = (estados[i.estado] || 0) + 1; });
+  const ctx4 = document.getElementById('chart-estado').getContext('2d');
+  state.charts.estado = new Chart(ctx4, {
+    type: 'doughnut',
+    data: { labels: ['Novo', 'Bom', 'Regular', 'Ruim'], datasets: [{ data: [estados.novo, estados.bom, estados.regular, estados.ruim], backgroundColor: ['#10b981','#3b82f6','#f59e0b','#ef4444'], borderWidth: 2, borderColor: '#1a2035' }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#9aa3bc', font: { size: 11 } } } } }
+  });
+}
+
+function renderAtrasadosTable() {
+  const atrasados = state.emprestimos.filter(e => e.status === 'atrasado' || (e.status === 'ativo' && e.data_prevista_devolucao && new Date(e.data_prevista_devolucao) < new Date()));
+  const tbody = document.getElementById('tbl-atrasados');
+  if (atrasados.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">Nenhum empréstimo em atraso</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = atrasados.map(e => {
+    const items = state.empItens.filter(ei => ei.emprestimo_id === e.id);
+    return `<tr>
+      <td><strong>${e.responsavel}</strong></td>
+      <td>${items.length} item(s)</td>
+      <td>${fmtDate(e.data_emprestimo || e.criado_em)}</td>
+      <td style="color:var(--red)">${fmtDate(e.data_prevista_devolucao)}</td>
+      <td>${STATUS_BADGE[e.status] || ''}</td>
+      <td><button class="btn btn-sm btn-success" onclick="marcarDevolvido('${e.id}')">✓ Devolvido</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ===== INVENTÁRIO =====
+let invViewMode = 'grid';
+
+function toggleView() {
+  invViewMode = invViewMode === 'grid' ? 'table' : 'grid';
+  document.getElementById('view-toggle-label').textContent = invViewMode === 'grid' ? 'Grade' : 'Tabela';
+  document.getElementById('inv-grid').style.display = invViewMode === 'grid' ? 'grid' : 'none';
+  document.getElementById('inv-table-wrap').style.display = invViewMode === 'table' ? 'block' : 'none';
+  renderInventario();
+}
+
+function getFilteredItens() {
+  const search = document.getElementById('inv-search').value.toLowerCase();
+  const cat = document.getElementById('inv-cat').value;
+  const origem = document.getElementById('inv-origem').value;
+  const estado = document.getElementById('inv-estado').value;
+  return state.itens.filter(i => {
+    if (search && !i.nome.toLowerCase().includes(search) && !(i.descricao||'').toLowerCase().includes(search)) return false;
+    if (cat && i.categoria_id !== cat) return false;
+    if (origem && i.origem !== origem) return false;
+    if (estado && i.estado !== estado) return false;
+    return true;
+  });
+}
+
+function renderInventario() {
+  const itens = getFilteredItens();
+  document.getElementById('inv-count').textContent = `${itens.length} iten(s)`;
+  if (invViewMode === 'grid') {
+    const grid = document.getElementById('inv-grid');
+    if (itens.length === 0) {
+      grid.innerHTML = '<div style="grid-column:1/-1"><div class="empty-state"><div class="empty-icon">📦</div><div class="empty-title">Nenhum item encontrado</div><div class="empty-desc">Adicione itens ou ajuste os filtros</div></div></div>';
+      return;
+    }
+    grid.innerHTML = itens.map(i => {
+      const pct = i.quantidade_total > 0 ? (i.quantidade_disponivel / i.quantidade_total * 100) : 0;
+      const low = pct < 30;
+      return `<div class="item-card">
+        <div class="item-card-header">
+          <div>
+            <div class="item-card-name">${i.nome}</div>
+            <div class="item-card-cat"><span class="color-dot" style="background:${getCatColor(i.categoria_id)}"></span>${getCatName(i.categoria_id)}</div>
+          </div>
+          <div class="item-card-qty">
+            <div class="item-card-qty-num" style="${low?'color:var(--red)':''}">${i.quantidade_disponivel}</div>
+            <div class="item-card-qty-label">disponível</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${ORIGEM_BADGE[i.origem]||''}
+          ${ESTADO_BADGE[i.estado]||''}
+        </div>
+        <div class="item-card-footer">
+          <div style="font-size:11px;color:var(--text3)">Total: ${i.quantidade_total}</div>
+          <div class="item-progress"><div class="item-progress-bar ${low?'low':''}" style="width:${pct}%"></div></div>
+          <div style="display:flex;gap:4px">
+            <button class="btn btn-sm btn-secondary" onclick="editItem('${i.id}')">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteRecord('item','${i.id}','${i.nome.replace(/'/g,"\\'")}')">🗑️</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    document.getElementById('tbl-inventario').innerHTML = itens.length === 0
+      ? '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📦</div><div class="empty-title">Nenhum item</div></div></td></tr>'
+      : itens.map(i => `<tr>
+          <td><strong>${i.nome}</strong>${i.localizacao?`<br><small style="color:var(--text3)">📍 ${i.localizacao}</small>`:''}</td>
+          <td><span class="color-dot" style="background:${getCatColor(i.categoria_id)}"></span>${getCatName(i.categoria_id)}</td>
+          <td>${i.quantidade_total}</td>
+          <td style="${i.quantidade_disponivel < 1 ? 'color:var(--red)' : ''}">${i.quantidade_disponivel}</td>
+          <td>${ORIGEM_BADGE[i.origem]||''}</td>
+          <td>${ESTADO_BADGE[i.estado]||''}</td>
+          <td>${fmtMoney(i.valor_estimado)}</td>
+          <td>
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-sm btn-secondary" onclick="editItem('${i.id}')">✏️ Editar</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteRecord('item','${i.id}','${i.nome.replace(/'/g,"\\'")}')">🗑️</button>
+            </div>
+          </td>
+        </tr>`).join('');
+  }
+}
+
+function filterInventario() { renderInventario(); }
+
+async function saveItem() {
+  const id = document.getElementById('item-id').value;
+  const nome = document.getElementById('item-nome').value.trim();
+  if (!nome) return showToast('Atenção', 'O nome do item é obrigatório.', 'warning');
+  const data = {
+    nome,
+    categoria_id: document.getElementById('item-categoria').value || null,
+    origem: document.getElementById('item-origem').value,
+    quantidade_total: parseInt(document.getElementById('item-qtd-total').value) || 0,
+    quantidade_disponivel: parseInt(document.getElementById('item-qtd-disp').value) || 0,
+    estado: document.getElementById('item-estado').value,
+    localizacao: document.getElementById('item-localizacao').value,
+    doador: document.getElementById('item-doador').value,
+    numero_serie: document.getElementById('item-serie').value,
+    valor_estimado: parseFloat(document.getElementById('item-valor').value) || null,
+    descricao: document.getElementById('item-descricao').value,
+    ativo: true
+  };
+  try {
+    if (id) {
+      await sbUpdate('itens', id, data);
+      showToast('Sucesso', 'Item atualizado!', 'success');
+    } else {
+      await sbInsert('itens', data);
+      showToast('Sucesso', 'Item cadastrado!', 'success');
+    }
+    closeModal('modal-item');
+    await loadAllData();
+    renderInventario();
+  } catch(e) { showToast('Erro', e.message, 'error'); }
+}
+
+function editItem(id) {
+  const item = state.itens.find(i => i.id === id);
+  if (!item) return;
+  document.getElementById('item-id').value = item.id;
+  document.getElementById('item-nome').value = item.nome;
+  document.getElementById('item-categoria').value = item.categoria_id || '';
+  document.getElementById('item-origem').value = item.origem;
+  document.getElementById('item-qtd-total').value = item.quantidade_total;
+  document.getElementById('item-qtd-disp').value = item.quantidade_disponivel;
+  document.getElementById('item-estado').value = item.estado;
+  document.getElementById('item-localizacao').value = item.localizacao || '';
+  document.getElementById('item-doador').value = item.doador || '';
+  document.getElementById('item-serie').value = item.numero_serie || '';
+  document.getElementById('item-valor').value = item.valor_estimado || '';
+  document.getElementById('item-descricao').value = item.descricao || '';
+  document.getElementById('modal-item-title').textContent = '✏️ Editar Item';
+  openModal('modal-item');
+}
+
+// ===== EMPRÉSTIMOS =====
+function renderEmprestimos() {
+  const search = document.getElementById('emp-search').value.toLowerCase();
+  const status = document.getElementById('emp-status').value;
+  const emps = state.emprestimos.filter(e => {
+    if (search && !e.responsavel.toLowerCase().includes(search)) return false;
+    if (status && e.status !== status) return false;
+    return true;
+  });
+  document.getElementById('emp-count').textContent = `${emps.length} empréstimo(s)`;
+  const tbody = document.getElementById('tbl-emprestimos');
+  if (emps.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🤝</div><div class="empty-title">Nenhum empréstimo encontrado</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = emps.map(e => {
+    const items = state.empItens.filter(ei => ei.emprestimo_id === e.id);
+    return `<tr>
+      <td><strong>${e.responsavel}</strong></td>
+      <td>${e.pessoa_id ? getPessoaName(e.pessoa_id) : '—'}</td>
+      <td>${items.length} item(s)</td>
+      <td>${fmtDate(e.data_emprestimo || e.criado_em)}</td>
+      <td style="${e.data_prevista_devolucao && new Date(e.data_prevista_devolucao) < new Date() && e.status !== 'concluido' ? 'color:var(--red)' : ''}">${fmtDate(e.data_prevista_devolucao)}</td>
+      <td>${fmtDate(e.data_devolucao)}</td>
+      <td>${STATUS_BADGE[e.status]||''}</td>
+      <td>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-secondary" onclick="viewEmprestimo('${e.id}')">👁️</button>
+          <button class="btn btn-sm btn-gold" onclick="printEmprestimo('${e.id}')">🖨️</button>
+          ${e.status === 'ativo' || e.status === 'atrasado' ? `<button class="btn btn-sm btn-success" onclick="marcarDevolvido('${e.id}')">✓</button>` : ''}
+          <button class="btn btn-sm btn-danger" onclick="deleteRecord('emprestimo','${e.id}','Empréstimo de ${e.responsavel.replace(/'/g,"\\'")}')">🗑️</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterEmprestimos() { renderEmprestimos(); }
+
+// Itens temporários do empréstimo
+function addEmpItem() {
+  const div = document.createElement('div');
+  const idx = state.empItemsTemp.length;
+  state.empItemsTemp.push({ item_id: '', quantidade: 1 });
+  div.id = `emp-item-row-${idx}`;
+  div.style.cssText = 'display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:8px;align-items:center';
+  div.innerHTML = `
+    <select class="form-select" onchange="state.empItemsTemp[${idx}].item_id=this.value">
+      <option value="">Selecione um item...</option>
+      ${state.itens.filter(i => i.quantidade_disponivel > 0).map(i => `<option value="${i.id}">${i.nome} (Disp: ${i.quantidade_disponivel})</option>`).join('')}
+    </select>
+    <input type="number" class="form-input" style="width:70px" min="1" value="1" onchange="state.empItemsTemp[${idx}].quantidade=parseInt(this.value)||1" placeholder="Qtd">
+    <button class="btn btn-sm btn-danger" onclick="removeEmpItem(${idx})">✕</button>
+  `;
+  document.getElementById('emp-items-list').appendChild(div);
+}
+
+function removeEmpItem(idx) {
+  state.empItemsTemp.splice(idx, 1);
+  document.getElementById('emp-items-list').innerHTML = '';
+  const temp = [...state.empItemsTemp];
+  state.empItemsTemp = [];
+  temp.forEach(() => addEmpItem());
+}
+
+async function saveEmprestimo(printAfter = false) {
+  const responsavel = document.getElementById('emp-responsavel').value.trim();
+  if (!responsavel) return showToast('Atenção', 'O responsável é obrigatório.', 'warning');
+  if (state.empItemsTemp.filter(i => i.item_id).length === 0) return showToast('Atenção', 'Adicione pelo menos um item.', 'warning');
+
+  const data = {
+    responsavel,
+    pessoa_id: document.getElementById('emp-pessoa').value || null,
+    data_emprestimo: document.getElementById('emp-data').value || new Date().toISOString(),
+    data_prevista_devolucao: document.getElementById('emp-devolucao-prev').value || null,
+    observacoes: document.getElementById('emp-obs').value,
+    status: 'ativo'
+  };
+  try {
+    const [empResult] = await sbInsert('emprestimos', data);
+    const empId = empResult.id;
+    
+    // Inserir itens e atualizar estoque
+    for (const ei of state.empItemsTemp.filter(i => i.item_id)) {
+      await sbInsert('emprestimo_itens', { emprestimo_id: empId, item_id: ei.item_id, quantidade: ei.quantidade });
+      const item = state.itens.find(i => i.id === ei.item_id);
+      if (item) {
+        const newDisp = Math.max(0, (item.quantidade_disponivel || 0) - (ei.quantidade || 1));
+        await sbUpdate('itens', ei.item_id, { quantidade_disponivel: newDisp });
+      }
+    }
+    
+    showToast('Sucesso', 'Empréstimo registrado!', 'success');
+    closeModal('modal-emprestimo');
+    await loadAllData();
+    renderEmprestimos();
+    if (printAfter) printEmprestimo(empId, true);
+  } catch(e) { showToast('Erro', e.message, 'error'); }
+}
+
+function saveEmprestimoAndPrint() { saveEmprestimo(true); }
+
+async function marcarDevolvido(id) {
+  try {
+    await sbUpdate('emprestimos', id, { status: 'concluido', data_devolucao: new Date().toISOString() });
+    // Devolver itens ao estoque
+    const items = state.empItens.filter(ei => ei.emprestimo_id === id);
+    for (const ei of items) {
+      if (!ei.devolvido) {
+        const item = state.itens.find(i => i.id === ei.item_id);
+        if (item) await sbUpdate('itens', ei.item_id, { quantidade_disponivel: (item.quantidade_disponivel || 0) + (ei.quantidade || 1) });
+        await sbUpdate('emprestimo_itens', ei.id, { devolvido: true });
+      }
+    }
+    showToast('Sucesso', 'Devolução registrada!', 'success');
+    await loadAllData();
+    if (state.currentPage === 'dashboard') renderDashboard();
+    if (state.currentPage === 'emprestimos') renderEmprestimos();
+  } catch(e) { showToast('Erro', e.message, 'error'); }
+}
+
+function viewEmprestimo(id) {
+  const e = state.emprestimos.find(x => x.id === id);
+  if (!e) return;
+  const items = state.empItens.filter(ei => ei.emprestimo_id === id);
+  const body = document.getElementById('modal-emp-detail-body');
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div><div class="form-label">Responsável</div><div style="font-weight:600">${e.responsavel}</div></div>
+      <div><div class="form-label">Pessoa</div><div>${e.pessoa_id ? getPessoaName(e.pessoa_id) : '—'}</div></div>
+      <div><div class="form-label">Data Empréstimo</div><div>${fmtDateTime(e.data_emprestimo || e.criado_em)}</div></div>
+      <div><div class="form-label">Prev. Devolução</div><div style="${e.status==='atrasado'?'color:var(--red)':''}">${fmtDateTime(e.data_prevista_devolucao)}</div></div>
+      <div><div class="form-label">Status</div><div>${STATUS_BADGE[e.status]||''}</div></div>
+      <div><div class="form-label">Data Devolução</div><div>${fmtDateTime(e.data_devolucao)}</div></div>
+    </div>
+    ${e.observacoes ? `<div class="form-group"><div class="form-label">Observações</div><div style="color:var(--text2)">${e.observacoes}</div></div>` : ''}
+    <div class="divider"></div>
+    <div style="font-family:var(--font-head);font-size:14px;font-weight:600;margin-bottom:12px">Itens Emprestados</div>
+    <table style="width:100%">
+      <thead><tr><th style="text-align:left;padding:8px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">Item</th><th style="text-align:left;padding:8px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">Quantidade</th><th style="text-align:left;padding:8px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">Devolvido</th></tr></thead>
+      <tbody>${items.map(ei => `<tr><td style="padding:8px">${getItemName(ei.item_id)}</td><td style="padding:8px">${ei.quantidade}</td><td style="padding:8px">${ei.devolvido ? '<span class="badge badge-green">✓ Sim</span>' : '<span class="badge badge-red">Não</span>'}</td></tr>`).join('')}</tbody>
+    </table>
+  `;
+  document.getElementById('modal-emp-detail-footer').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal('modal-emp-detail')">Fechar</button>
+    <button class="btn btn-gold" onclick="printEmprestimo('${id}')">🖨️ Imprimir</button>
+    ${e.status !== 'concluido' ? `<button class="btn btn-success" onclick="marcarDevolvido('${id}');closeModal('modal-emp-detail')">✓ Marcar Devolvido</button>` : ''}
+  `;
+  openModal('modal-emp-detail');
+}
+
+// ===== PESSOAS =====
+function renderPessoas() {
+  const search = document.getElementById('pes-search').value.toLowerCase();
+  const tipo = document.getElementById('pes-tipo').value;
+  const pessoas = state.pessoas.filter(p => {
+    if (search && !p.nome.toLowerCase().includes(search)) return false;
+    if (tipo && p.tipo !== tipo) return false;
+    return true;
+  });
+  document.getElementById('pes-count').textContent = `${pessoas.length} pessoa(s)`;
+  const tbody = document.getElementById('tbl-pessoas');
+  if (pessoas.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">Nenhuma pessoa cadastrada</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = pessoas.map(p => {
+    const emps = state.emprestimos.filter(e => e.pessoa_id === p.id).length;
+    return `<tr>
+      <td><strong>${p.nome}</strong></td>
+      <td>${TIPO_BADGE[p.tipo]||''}</td>
+      <td>${p.cpf || '—'}</td>
+      <td>${p.telefone || '—'}</td>
+      <td>${p.email || '—'}</td>
+      <td><span class="badge badge-blue">${emps}</span></td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-sm btn-secondary" onclick="editPessoa('${p.id}')">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteRecord('pessoa','${p.id}','${p.nome.replace(/'/g,"\\'")}')">🗑️</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterPessoas() { renderPessoas(); }
+
+async function savePessoa() {
+  const id = document.getElementById('pes-id').value;
+  const nome = document.getElementById('pes-nome').value.trim();
+  if (!nome) return showToast('Atenção', 'O nome é obrigatório.', 'warning');
+  const data = {
+    nome,
+    tipo: document.getElementById('pes-tipo-sel').value,
+    cpf: document.getElementById('pes-cpf').value,
+    email: document.getElementById('pes-email').value,
+    telefone: document.getElementById('pes-tel').value,
+    endereco: document.getElementById('pes-endereco').value,
+    ativo: true
+  };
+  try {
+    if (id) { await sbUpdate('pessoas', id, data); showToast('Sucesso', 'Pessoa atualizada!', 'success'); }
+    else { await sbInsert('pessoas', data); showToast('Sucesso', 'Pessoa cadastrada!', 'success'); }
+    closeModal('modal-pessoa');
+    await loadAllData();
+    renderPessoas();
+  } catch(e) { showToast('Erro', e.message, 'error'); }
+}
+
+function editPessoa(id) {
+  const p = state.pessoas.find(p => p.id === id);
+  if (!p) return;
+  document.getElementById('pes-id').value = p.id;
+  document.getElementById('pes-nome').value = p.nome;
+  document.getElementById('pes-tipo-sel').value = p.tipo;
+  document.getElementById('pes-cpf').value = p.cpf || '';
+  document.getElementById('pes-email').value = p.email || '';
+  document.getElementById('pes-tel').value = p.telefone || '';
+  document.getElementById('pes-endereco').value = p.endereco || '';
+  document.getElementById('modal-pessoa-title').textContent = '✏️ Editar Pessoa';
+  openModal('modal-pessoa');
+}
+
+// ===== CATEGORIAS =====
+function renderCategorias() {
+  const grid = document.getElementById('cat-grid');
+  if (state.categorias.length === 0) {
+    grid.innerHTML = '<div class="empty-state"><div class="empty-icon">🗂️</div><div class="empty-title">Nenhuma categoria</div></div>';
+    return;
+  }
+  grid.innerHTML = state.categorias.map(c => {
+    const count = state.itens.filter(i => i.categoria_id === c.id).length;
+    return `<div class="item-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="width:40px;height:40px;border-radius:10px;background:${c.cor}22;border:1px solid ${c.cor}44;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🗂️</div>
+        <div>
+          <div class="item-card-name">${c.nome}</div>
+          <div style="font-size:11px;color:var(--text3)">${count} iten(s) cadastrado(s)</div>
+        </div>
+      </div>
+      ${c.descricao ? `<div style="font-size:12px;color:var(--text3);margin-bottom:10px">${c.descricao}</div>` : ''}
+      <div class="heritage-bar"><div class="heritage-fill" style="width:${Math.min(100, count*10)}%;background:${c.cor}"></div></div>
+      <div class="item-card-footer">
+        <div style="display:flex;align-items:center;gap:6px"><span class="color-dot" style="background:${c.cor};width:12px;height:12px"></span><span style="font-size:11px;color:var(--text3)">${c.cor}</span></div>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-sm btn-secondary" onclick="editCategoria('${c.id}')">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteRecord('categoria','${c.id}','${c.nome.replace(/'/g,"\\'")}')">🗑️</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function saveCategoria() {
+  const id = document.getElementById('cat-id').value;
+  const nome = document.getElementById('cat-nome').value.trim();
+  if (!nome) return showToast('Atenção', 'O nome é obrigatório.', 'warning');
+  const data = { nome, descricao: document.getElementById('cat-desc').value, cor: document.getElementById('cat-cor').value };
+  try {
+    if (id) { await sbUpdate('categorias', id, data); showToast('Sucesso', 'Categoria atualizada!', 'success'); }
+    else { await sbInsert('categorias', data); showToast('Sucesso', 'Categoria criada!', 'success'); }
+    closeModal('modal-categoria');
+    await loadAllData();
+    renderCategorias();
+  } catch(e) { showToast('Erro', e.message, 'error'); }
+}
+
+function editCategoria(id) {
+  const c = state.categorias.find(c => c.id === id);
+  if (!c) return;
+  document.getElementById('cat-id').value = c.id;
+  document.getElementById('cat-nome').value = c.nome;
+  document.getElementById('cat-desc').value = c.descricao || '';
+  document.getElementById('cat-cor').value = c.cor || '#ff6b35';
+  document.getElementById('modal-cat-title').textContent = '✏️ Editar Categoria';
+  openModal('modal-categoria');
+}
+
+// ===== DELETE =====
+let deleteTarget = null;
+function deleteRecord(type, id, name) {
+  deleteTarget = { type, id };
+  document.getElementById('delete-item-name').textContent = `"${name}"`;
+  openModal('modal-delete');
+}
+
+async function confirmDelete() {
+  if (!deleteTarget) return;
+  const { type, id } = deleteTarget;
+  try {
+    if (type === 'item') {
+      await sbUpdate('itens', id, { ativo: false });
+      state.itens = state.itens.filter(i => i.id !== id);
+      renderInventario();
+    } else if (type === 'emprestimo') {
+      await sbDelete('emprestimos', id);
+      state.emprestimos = state.emprestimos.filter(e => e.id !== id);
+      renderEmprestimos();
+    } else if (type === 'pessoa') {
+      await sbUpdate('pessoas', id, { ativo: false });
+      state.pessoas = state.pessoas.filter(p => p.id !== id);
+      renderPessoas();
+    } else if (type === 'categoria') {
+      await sbDelete('categorias', id);
+      state.categorias = state.categorias.filter(c => c.id !== id);
+      renderCategorias();
+    }
+    showToast('Excluído', 'Registro removido com sucesso.', 'success');
+    closeModal('modal-delete');
+    deleteTarget = null;
+    updateBadges();
+  } catch(e) { showToast('Erro', e.message, 'error'); }
+}
+
+// ===== PRINT =====
+function printEmprestimo(id, isNew = false) {
+  const e = state.emprestimos.find(x => x.id === id);
+  if (!e && !isNew) return;
+  const items = state.empItens.filter(ei => ei.emprestimo_id === id);
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Comprovante de Empréstimo</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 30px; color: #222; }
+    .header { text-align: center; border-bottom: 2px solid #ff6b35; padding-bottom: 20px; margin-bottom: 24px; }
+    .logo { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; }
+    h1 { color: #ff6b35; font-size: 20px; margin: 8px 0 4px; }
+    h2 { font-size: 14px; color: #666; margin: 0; }
+    .section { margin-bottom: 20px; }
+    .label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+    .value { font-size: 14px; font-weight: 600; margin: 2px 0 12px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th { background: #f5f5f5; padding: 8px 12px; text-align: left; font-size: 12px; color: #555; }
+    td { padding: 8px 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+    .footer { margin-top: 40px; border-top: 1px solid #ddd; padding-top: 20px; }
+    .sign-box { display: inline-block; width: 280px; border-bottom: 1px solid #222; height: 40px; margin: 10px 30px 0 0; }
+    .warning { background: #fff3cd; border: 1px solid #ffc107; padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-top: 16px; }
+    @media print { button { display: none; } }
+  </style>
+  </head><body>
+  <div class="header">
+    <img src="https://unidzfxifxjruonbjspe.supabase.co/storage/v1/object/public/imagensong/LOGOMARCA.png" class="logo" alt="ONG Por Amor" onerror="this.style.display='none'">
+    <h1>ONG Por Amor</h1>
+    <h2>Comprovante de Empréstimo de Itens</h2>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+    <div class="section">
+      <div class="label">Responsável</div>
+      <div class="value">${e ? e.responsavel : '—'}</div>
+      <div class="label">Data do Empréstimo</div>
+      <div class="value">${e ? fmtDateTime(e.data_emprestimo || e.criado_em) : new Date().toLocaleString('pt-BR')}</div>
+    </div>
+    <div class="section">
+      <div class="label">Previsão de Devolução</div>
+      <div class="value" style="color:${e && e.status==='atrasado' ? 'red' : '#222'}">${e ? fmtDateTime(e.data_prevista_devolucao) : '—'}</div>
+      <div class="label">Status</div>
+      <div class="value">${e ? e.status.toUpperCase() : 'ATIVO'}</div>
+    </div>
+  </div>
+  ${e && e.observacoes ? `<div class="section"><div class="label">Observações</div><div class="value" style="font-weight:400">${e.observacoes}</div></div>` : ''}
+  <div class="section">
+    <div class="label">Itens Emprestados</div>
+    <table>
+      <thead><tr><th>#</th><th>Item</th><th>Quantidade</th></tr></thead>
+      <tbody>${items.map((ei, idx) => `<tr><td>${idx+1}</td><td>${getItemName(ei.item_id)}</td><td>${ei.quantidade}</td></tr>`).join('')}</tbody>
+    </table>
+  </div>
+  <div class="warning">⚠️ Os itens acima são propriedade da ONG Por Amor e devem ser devolvidos na data prevista. O não cumprimento poderá implicar em responsabilização do solicitante.</div>
+  <div class="footer">
+    <p style="font-size:12px;color:#666;margin-bottom:20px">Assinaturas:</p>
+    <div class="sign-box"></div>
+    <div class="sign-box"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;font-size:11px;color:#888;margin-top:4px">
+      <div>Responsável: ________________________</div>
+      <div>Representante da ONG: ________________</div>
+    </div>
+    <p style="font-size:10px;color:#aaa;margin-top:20px;text-align:center">Documento gerado em ${new Date().toLocaleString('pt-BR')} — Sistema de Inventário ONG Por Amor</p>
+  </div>
+  <br><button onclick="window.print()" style="background:#ff6b35;color:white;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:14px">🖨️ Imprimir</button>
+  </body></html>`;
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 500);
+}
+
+function printRelatorio(tipo) {
+  let html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório — ONG Por Amor</title>
+  <style>body{font-family:Arial,sans-serif;max-width:900px;margin:0 auto;padding:30px;color:#222}.header{text-align:center;border-bottom:2px solid #ff6b35;padding-bottom:16px;margin-bottom:24px}h1{color:#ff6b35;font-size:18px;margin:6px 0}table{width:100%;border-collapse:collapse;margin-top:10px}th{background:#f5f5f5;padding:8px;text-align:left;font-size:11px;border:1px solid #ddd}td{padding:8px;border:1px solid #eee;font-size:12px}.footer{margin-top:24px;text-align:center;font-size:10px;color:#aaa}@media print{button{display:none}}</style>
+  </head><body>
+  <div class="header">
+    <img src="https://unidzfxifxjruonbjspe.supabase.co/storage/v1/object/public/imagensong/LOGOMARCA.png" style="width:60px;height:60px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">
+    <h1>ONG Por Amor — `;
+  
+  if (tipo === 'inventario') {
+    html += `Relatório de Inventário</h1><p style="font-size:12px;color:#666">Gerado em ${new Date().toLocaleString('pt-BR')} — Total: ${state.itens.length} itens</p></div>
+    <table><thead><tr><th>Nome</th><th>Categoria</th><th>Qtd Total</th><th>Disponível</th><th>Origem</th><th>Estado</th><th>Valor Est.</th><th>Localização</th></tr></thead>
+    <tbody>${state.itens.map(i => `<tr><td>${i.nome}</td><td>${getCatName(i.categoria_id)}</td><td>${i.quantidade_total}</td><td>${i.quantidade_disponivel}</td><td>${i.origem==='doacao'?'Doação':'Compra'}</td><td>${i.estado}</td><td>${fmtMoney(i.valor_estimado)}</td><td>${i.localizacao||'—'}</td></tr>`).join('')}</tbody></table>`;
+  } else if (tipo === 'emprestimos-ativos') {
+    const ativos = state.emprestimos.filter(e => e.status === 'ativo' || e.status === 'atrasado');
+    html += `Empréstimos Ativos</h1><p style="font-size:12px;color:#666">Gerado em ${new Date().toLocaleString('pt-BR')} — Total: ${ativos.length}</p></div>
+    <table><thead><tr><th>Responsável</th><th>Itens</th><th>Data Empréstimo</th><th>Prev. Devolução</th><th>Status</th></tr></thead>
+    <tbody>${ativos.map(e => `<tr><td>${e.responsavel}</td><td>${state.empItens.filter(ei=>ei.emprestimo_id===e.id).length} item(s)</td><td>${fmtDate(e.data_emprestimo||e.criado_em)}</td><td style="${e.status==='atrasado'?'color:red':''}">${fmtDate(e.data_prevista_devolucao)}</td><td>${e.status}</td></tr>`).join('')}</tbody></table>`;
+  } else if (tipo === 'atrasados') {
+    const atrasados = state.emprestimos.filter(e => e.status === 'atrasado');
+    html += `Itens em Atraso</h1><p style="font-size:12px;color:#666">Gerado em ${new Date().toLocaleString('pt-BR')} — Total: ${atrasados.length}</p></div>
+    <table><thead><tr><th>Responsável</th><th>Itens</th><th>Data Empréstimo</th><th>Prev. Devolução</th><th>Dias em Atraso</th></tr></thead>
+    <tbody>${atrasados.map(e => { const dias = e.data_prevista_devolucao ? Math.floor((new Date()-new Date(e.data_prevista_devolucao))/86400000) : '?'; return `<tr><td>${e.responsavel}</td><td>${state.empItens.filter(ei=>ei.emprestimo_id===e.id).length} item(s)</td><td>${fmtDate(e.data_emprestimo||e.criado_em)}</td><td style="color:red">${fmtDate(e.data_prevista_devolucao)}</td><td style="color:red;font-weight:bold">${dias} dia(s)</td></tr>`; }).join('')}</tbody></table>`;
+  } else if (tipo === 'patrimonio') {
+    const total = state.itens.reduce((s,i) => s+((i.valor_estimado||0)*(i.quantidade_total||0)),0);
+    html += `Relatório de Patrimônio</h1><p style="font-size:12px;color:#666">Gerado em ${new Date().toLocaleString('pt-BR')} — Total Estimado: ${fmtMoney(total)}</p></div>
+    <table><thead><tr><th>Categoria</th><th>Qtd Itens</th><th>Valor Unitário Médio</th><th>Valor Total</th></tr></thead>
+    <tbody>${state.categorias.map(c => { const itens = state.itens.filter(i=>i.categoria_id===c.id); const valor = itens.reduce((s,i)=>s+((i.valor_estimado||0)*(i.quantidade_total||0)),0); return `<tr><td>${c.nome}</td><td>${itens.length}</td><td>${fmtMoney(itens.length>0?valor/itens.length:0)}</td><td><strong>${fmtMoney(valor)}</strong></td></tr>`; }).join('')}
+    <tr style="background:#fff3e0"><td colspan="3"><strong>TOTAL PATRIMÔNIO</strong></td><td><strong style="color:#ff6b35">${fmtMoney(total)}</strong></td></tr></tbody></table>`;
+  }
+  
+  html += `<div class="footer">Documento gerado em ${new Date().toLocaleString('pt-BR')} — Sistema de Inventário ONG Por Amor</div>
+  <br><button onclick="window.print()" style="background:#ff6b35;color:white;border:none;padding:10px 20px;border-radius:6px;cursor:pointer">🖨️ Imprimir</button>
+  </body></html>`;
+  
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 500);
+}
+
+// ===== GLOBAL SEARCH =====
+function globalSearch(val) {
+  if (!val) return;
+  document.getElementById('inv-search').value = val;
+  navigate('inventario');
+  filterInventario();
+}
+
+// ===== MODAL =====
+function openModal(id) {
+  // Reset forms on open
+  if (id === 'modal-item') {
+    if (!document.getElementById('item-id').value) {
+      ['item-id','item-nome','item-localizacao','item-doador','item-serie','item-valor','item-descricao'].forEach(f => document.getElementById(f).value = '');
+      document.getElementById('item-qtd-total').value = '0';
+      document.getElementById('item-qtd-disp').value = '0';
+      document.getElementById('modal-item-title').textContent = '➕ Novo Item';
+    }
+  }
+  if (id === 'modal-emprestimo') {
+    ['emp-id','emp-responsavel','emp-obs'].forEach(f => document.getElementById(f).value = '');
+    document.getElementById('emp-data').value = new Date().toISOString().slice(0,16);
+    document.getElementById('emp-devolucao-prev').value = '';
+    document.getElementById('emp-items-list').innerHTML = '';
+    state.empItemsTemp = [];
+    addEmpItem();
+  }
+  if (id === 'modal-pessoa' && !document.getElementById('pes-id').value) {
+    ['pes-id','pes-nome','pes-cpf','pes-email','pes-tel','pes-endereco'].forEach(f => document.getElementById(f).value = '');
+    document.getElementById('modal-pessoa-title').textContent = '👤 Nova Pessoa';
+  }
+  if (id === 'modal-categoria' && !document.getElementById('cat-id').value) {
+    ['cat-id','cat-nome','cat-desc'].forEach(f => document.getElementById(f).value = '');
+    document.getElementById('cat-cor').value = '#ff6b35';
+    document.getElementById('modal-cat-title').textContent = '🗂️ Nova Categoria';
+  }
+  document.getElementById(id).classList.add('open');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  // Reset IDs after close
+  setTimeout(() => {
+    if (id === 'modal-item') document.getElementById('item-id').value = '';
+    if (id === 'modal-pessoa') document.getElementById('pes-id').value = '';
+    if (id === 'modal-categoria') document.getElementById('cat-id').value = '';
+  }, 300);
+}
+
+// Close on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(overlay.id); });
+});
+
+// ===== TOAST =====
+function showToast(title, msg, type = 'success') {
+  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<div class="toast-icon">${icons[type]||'ℹ️'}</div><div class="toast-content"><div class="toast-title">${title}</div><div class="toast-msg">${msg}</div></div>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.style.opacity = '0', 3000);
+  setTimeout(() => el.remove(), 3400);
+}
+
+// ===== DATE =====
+function updateDate() {
+  const now = new Date();
+  document.getElementById('topbar-date').textContent = now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// ===== INIT =====
+window.addEventListener('load', () => {
+  updateDate();
+  setInterval(updateDate, 60000);
+  setTimeout(() => {
+    document.getElementById('loading-screen').classList.add('hidden');
+  }, 2000);
+});
+</script>
+</body>
+</html>
